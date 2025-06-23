@@ -1,0 +1,8 @@
+.gradle
+.idea
+gradle
+*/.gradle
+*/.idea
+*/build
+*/runs
+*/run
