@@ -26,34 +26,41 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 
-public class Config {
-    public static final Path CONFIG_PATH = Paths.get("config/server-suspend-now.properties");
+public record Config(boolean enable, boolean saveAllBeforeSuspension) {
+
+    public static final Path DEFAULT_CONFIG_FILE_PATH = Paths.get("config/suspend-the-server.properties");
     public static final String DEFAULT_CONFIG = """
-            # server-suspend-now.properties
+            # suspend-the-server.properties
+            
+            # Enable the mod
             enable=true
+            
+            # Save everything before suspension
+            save_all_before_suspension=true
             """;
 
-    private boolean enable = false;
     private static final Logger LOGGER = LogManager.getLogger(Config.class);
 
-    public Config() {
+    public static Config fromConfigFile() {
+        return fromConfigFile(DEFAULT_CONFIG_FILE_PATH);
+    }
+
+    public static Config fromConfigFile(Path path) {
         try {
-            if (Files.notExists(CONFIG_PATH)) {
-                Files.createDirectories(CONFIG_PATH.getParent());
-                try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(CONFIG_PATH))) {
-                    writer.println(DEFAULT_CONFIG);
+            if (Files.notExists(path)) {
+                Files.createDirectories(path.getParent());
+                try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(path))) {
+                    writer.print(DEFAULT_CONFIG);
                 }
             }
             Properties props = new Properties();
-            props.load(Files.newInputStream(CONFIG_PATH));
-            enable = props.getProperty("enable", "false").equals("true");
+            props.load(Files.newInputStream(path));
+            boolean enable = props.getProperty("enable", "false").trim().equalsIgnoreCase("true");
+            boolean saveAllBeforeSuspension = props.getProperty("save_all_before_suspension", "true").trim().equalsIgnoreCase("true");
+            return new Config(enable, saveAllBeforeSuspension);
         } catch (IOException e) {
             LOGGER.warn(e);
-            enable = false;
+            return new Config(false, true);
         }
-    }
-
-    public boolean isEnable() {
-        return enable;
     }
 }

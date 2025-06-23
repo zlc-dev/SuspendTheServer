@@ -26,13 +26,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ServerSuspension {
     public volatile @Nullable MinecraftServer server = null;
 
-    private final AtomicBoolean suspended;
+    private final AtomicBoolean suspended = new AtomicBoolean(false);
 
     private static final Logger logger = LogManager.getLogger(ServerSuspension.class);
 
     public ServerSuspension(@Nullable MinecraftServer server) {
         this.server = server;
-        this.suspended = new AtomicBoolean(false);
     }
 
     public boolean isSuspended() {
@@ -44,31 +43,19 @@ public class ServerSuspension {
         if (server == null) {
             return;
         }
-        boolean hasSuspended = suspended.get();
-        suspended.set(true);
-        if (hasSuspended || !server.isRunning()) {
+        if (!suspended.compareAndSet(false, true) || !server.isRunning()) {
             return;
         }
-        logger.info("suspend the server");
-        System.gc();
         server.execute(()-> {
-            try {
-                server.saveEverything(false, false, false);
-            } catch (NoSuchMethodError ex) {
-                // This happens on Minecraft versions before 1.18 where
-                // MinecraftServer.saveEverything doesn't exist.
-                server.getPlayerList().saveAll();
-                server.saveAllChunks(false, false, false);
-            } finally {
-                var serverTickRateManager = server.tickRateManager();
-                if (serverTickRateManager.isSprinting()) {
-                    serverTickRateManager.stopSprinting();
-                }
-                if (serverTickRateManager.isSteppingForward()) {
-                    serverTickRateManager.stopStepping();
-                }
-                serverTickRateManager.setFrozen(true);
+            var serverTickRateManager = server.tickRateManager();
+            if (serverTickRateManager.isSprinting()) {
+                serverTickRateManager.stopSprinting();
             }
+            if (serverTickRateManager.isSteppingForward()) {
+                serverTickRateManager.stopStepping();
+            }
+            serverTickRateManager.setFrozen(true);
+            logger.info("Server suspended");
         });
     }
 
@@ -77,9 +64,9 @@ public class ServerSuspension {
         if (server == null) {
             return;
         }
-        logger.info("resume the server");
-        suspended.set(false);
         var serverTickRateManager = server.tickRateManager();
         serverTickRateManager.setFrozen(false);
+        suspended.set(false);
+        logger.info("Server resumed");
     }
 }

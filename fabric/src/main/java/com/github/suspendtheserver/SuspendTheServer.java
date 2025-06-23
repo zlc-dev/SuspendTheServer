@@ -28,13 +28,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SuspendTheServer implements DedicatedServerModInitializer {
 
-    public static final Config CONFIG = new Config();
+    public static final Config CONFIG = Config.fromConfigFile();
     public static final Map<MinecraftServer, ServerSuspension> SUSPENSIONS = new ConcurrentHashMap<>();
     public static final Logger LOGGER = LogManager.getLogger(SuspendTheServer.class);
 
     @Override
     public void onInitializeServer() {
-        if (!CONFIG.isEnable())
+        if (!CONFIG.enable())
             return;
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SUSPENSIONS.computeIfAbsent(server, ServerSuspension::new).suspend();
@@ -42,6 +42,9 @@ public class SuspendTheServer implements DedicatedServerModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register(((handler, server) -> {
             if (server.getPlayerCount() > 1)
                 return;
+            if (CONFIG.saveAllBeforeSuspension()) {
+                server.saveEverything(false, false, false);
+            }
             SUSPENSIONS.computeIfAbsent(server, ServerSuspension::new).suspend();
         }));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

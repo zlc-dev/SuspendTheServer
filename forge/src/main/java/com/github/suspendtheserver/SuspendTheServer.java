@@ -30,12 +30,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Mod("suspendtheserver")
 public class SuspendTheServer {
-    public static final Config CONFIG = new Config();
+    public static final Config CONFIG = Config.fromConfigFile();;
     public static final Map<MinecraftServer, ServerSuspension> SUSPENSIONS = new ConcurrentHashMap<>();
     public static final Logger LOGGER = LogManager.getLogger(SuspendTheServer.class);
 
     public SuspendTheServer() {
-        if (!CONFIG.isEnable())
+        if (!CONFIG.enable())
             return;
         MinecraftForge.EVENT_BUS.register(ServerEventHandler.class);
     }
@@ -53,6 +53,9 @@ class ServerEventHandler {
         var server = event.getEntity().getServer();
         if (server == null || server.getPlayerCount() > 1) {
             return;
+        }
+        if (SuspendTheServer.CONFIG.saveAllBeforeSuspension()) {
+            server.saveEverything(false, false, false);
         }
         SuspendTheServer.SUSPENSIONS.computeIfAbsent(server, ServerSuspension::new).suspend();
     }

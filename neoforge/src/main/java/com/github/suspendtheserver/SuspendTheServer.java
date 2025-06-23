@@ -33,12 +33,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @Mod(value = "suspendtheserver", dist = Dist.DEDICATED_SERVER)
 public class SuspendTheServer {
 
-    public static final Config CONFIG = new Config();
+    public static final Config CONFIG = Config.fromConfigFile();
     public static final Map<MinecraftServer, ServerSuspension> SUSPENSIONS = new ConcurrentHashMap<>();
     public static final Logger LOGGER = LogManager.getLogger(SuspendTheServer.class);
 
     public SuspendTheServer(FMLModContainer container, IEventBus modBus, Dist dist) {
-        if (!CONFIG.isEnable())
+        if (!CONFIG.enable())
             return;
         NeoForge.EVENT_BUS.addListener(SuspendTheServer::onPlayerLoggedOut);
         NeoForge.EVENT_BUS.addListener(SuspendTheServer::onPlayerLoggedIn);
@@ -54,6 +54,9 @@ public class SuspendTheServer {
         var server = event.getEntity().getServer();
         if (server == null || server.getPlayerCount() > 1) {
             return;
+        }
+        if (CONFIG.saveAllBeforeSuspension()) {
+            server.saveEverything(false, false, false);
         }
         SUSPENSIONS.computeIfAbsent(server, ServerSuspension::new).suspend();
     }
